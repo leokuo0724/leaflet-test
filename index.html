@@ -13,6 +13,20 @@
     integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
     crossorigin="" />
   <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #mapid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
     .info {
       padding: 6px 8px;
       font: 14px/16px Arial, Helvetica, sans-serif;
@@ -26,12 +40,22 @@
       margin: 0 0 5px;
       color: #777;
     }
+
+    #control-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 10;
+    }
   </style>
 </head>
 
 <body>
   <div id="mapid" style="width:375px; height:667px"></div>
-  <button onclick="isCollectable()">採集</button>
+  <div id="control-layer">
+    <button id="collect-btn" onclick="isCollectable()">採集</button>
+    <button id="accurate-btn" onclick="improveGPS()">增加定位準確度</button>
+  </div>
 </body>
 <script src="./script.js"></script>
 

@@ -1,3 +1,7 @@
+document.getElementById('mapid').style.width = document.body.clientWidth + 'px'
+document.getElementById('mapid').style.height = document.body.clientHeight + 'px'
+console.log(document.body.clientHeight)
+
 let userData = {
   collector: 2,
   coolDownGrid: []
@@ -119,8 +123,14 @@ let geojson
 let info
 let lng, lat
 let marker
+let watcher
 
 var options = {
+  enableHighAccuracy: false,
+  timeout: 5000,
+  maximumAge: 0
+};
+var accurateOptions = {
   enableHighAccuracy: false,
   timeout: 5000,
   maximumAge: 0
@@ -128,7 +138,14 @@ var options = {
 
 function init () {
   navigator.geolocation.getCurrentPosition(drawMap, error, options)
-  navigator.geolocation.watchPosition(update, error, options)
+  watcher = navigator.geolocation.watchPosition(update, error, options)
+}
+
+function improveGPS () {
+  if (watcher) {
+    navigator.geolocation.clearWatch(watcher)
+    watcher = navigator.geolocation.watchPosition(update, error, accurateOptions)
+  }
 }
 
 function error (err) {
@@ -149,7 +166,11 @@ function update (pos) {
   lat = pos.coords.latitude
   lng = pos.coords.longitude
   marker.setLatLng([lat, lng])
-  console.log(marker)
+
+  if(geojson){
+    geojson.clearLayers()
+    geojson.addData(createVisiableAreaData())
+  }
 }
 
 async function drawMap (pos) {
@@ -165,7 +186,7 @@ async function drawMap (pos) {
       maxZoom: 18,
       minZoom: 8,
       errorTilrUrl: 'http://bpic.588ku.com/element_pic/16/12/07/706f7ff4f15725b17ba1d30d384e6468.jpg',
-      id: 'mapbox.light',
+      id: 'mapbox.streets',
       accessToken: 'pk.eyJ1IjoibGVva3VvMDcyNCIsImEiOiJjanZ6YzltbXUwcDVoM3pyNmI0aGp5N29tIn0.xjdaery7ZqnxkZhbktidYQ'
   }).addTo(mymap)
 
@@ -174,7 +195,6 @@ async function drawMap (pos) {
 }
 
 async function drawGeoJSON () {
-  
   geojson = L.geoJSON(createVisiableAreaData(), {
     style: style,
     onEachFeature: onEachFeature
@@ -258,7 +278,7 @@ function style(feature) {
     opacity: 1,
     color: 'white',
     dashArray: '3',
-    fillOpacity: 0.3
+    fillOpacity: 0.2
   }
 }
 
@@ -280,16 +300,16 @@ function highlightFeature(e) {
     opacity: 1,
     color: 'white',
     dashArray: '3',
-    fillOpacity: 0.3
+    fillOpacity: 0.2
   })
 
   var layer = e.target;
 
   layer.setStyle({
-    weight: 5,
+    weight: 3,
     color: '#666',
     dashArray: '',
-    fillOpacity: 0.5
+    fillOpacity: 0.3
   });
 
   if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
@@ -357,7 +377,6 @@ function collect () {
   if (index >= 0) { // 原本該格有存在資料庫中
     mapGridData[index].properties.density++
     mapGridData[index].properties.resources.木頭 -= 300
-    console.log(mapGridData)
     geojson.addData(createVisiableAreaData())
   } else { //原本沒存在，需要增加新的物件於陣列中，並刪除定量資源
     let gap = 0.01
