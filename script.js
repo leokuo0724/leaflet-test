@@ -1,6 +1,5 @@
 document.getElementById('mapid').style.width = document.body.clientWidth + 'px'
 document.getElementById('mapid').style.height = document.body.clientHeight + 'px'
-console.log(document.body.clientHeight)
 
 let userData = {
   collector: 2,
@@ -131,9 +130,10 @@ var options = {
   maximumAge: 0
 };
 var accurateOptions = {
-  enableHighAccuracy: false,
+  enableHighAccuracy: true,
   timeout: 5000,
-  maximumAge: 0
+  maximumAge: 0,
+  distanceFilter: 1
 };
 
 function init () {
@@ -228,8 +228,8 @@ function createVisiableAreaData () {
   let gap = 0.01
   for(var i=-2; i<3; i++){
     for(var j=-2; j<3; j++){
-      let checkLat = Math.ceil((maxLat+(i * gap)) * 100) / 100
-      let checkLng = Math.ceil((maxLng+(j * gap)) * 100) / 100
+      let checkLat = Math.round((maxLat+(i * gap)) * 100) / 100
+      let checkLng = Math.round((maxLng+(j * gap)) * 100) / 100
       // 找已儲存陣列中是否有符合的
       let index = mapGridData.findIndex(ele => {
         return ele.properties.maxLat === checkLat && ele.properties.maxLng === checkLng
@@ -268,6 +268,7 @@ function createVisiableAreaData () {
       }
     }
   }
+  console.log(locationGridArr)
   return locationGridArr
 }
 
