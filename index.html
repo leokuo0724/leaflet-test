@@ -44,8 +44,13 @@
     #control-layer {
       position: absolute;
       left: 0;
-      bottom: 0;
+      bottom: 30px;
       z-index: 10;
+    }
+
+    .btn {
+      background: white;
+      border-radius: 5px;
     }
   </style>
 </head>
@@ -53,8 +58,8 @@
 <body>
   <div id="mapid" style="width:375px; height:667px"></div>
   <div id="control-layer">
-    <button id="collect-btn" onclick="isCollectable()">採集</button>
-    <button id="accurate-btn" onclick="improveGPS()">增加定位準確度</button>
+    <button class="btn" id="collect-btn" onclick="isCollectable()">採集</button>
+    <button class="btn" id="accurate-btn" onclick="improveGPS()">增加定位準確度</button>
   </div>
 </body>
 <script src="./script.js"></script>

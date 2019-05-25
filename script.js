@@ -2,8 +2,10 @@ document.getElementById('mapid').style.width = document.body.clientWidth + 'px'
 document.getElementById('mapid').style.height = document.body.clientHeight + 'px'
 
 let userData = {
+  detectRange: 3,
+  collectAbility: 1000,
   collector: 2,
-  coolDownGrid: []
+  coolDownGrid: [],
 }
 
 var mapGridData = [
@@ -14,11 +16,11 @@ var mapGridData = [
       "maxLng": 120.22,
       "name" : "test",
       "density": 50,
-      "resources": {
-        "木頭": 1200,
-        "石板": 1000,
-        "鋼鐵": 300,
-        "銅礦": 100
+      "storage": {
+        "木頭": 0,
+        "石板": 0,
+        "鋼鐵": 0,
+        "銅礦": 0
       }
     },
     "geometry": {
@@ -41,7 +43,7 @@ var mapGridData = [
       "maxLng": 120.22,
       "name" : "test", 
       "density": 2,
-      "resources": {
+      "storage": {
         "木頭": 1200,
         "石板": 1000,
         "鋼鐵": 300,
@@ -68,7 +70,7 @@ var mapGridData = [
       "maxLng": 120.24,
       "name" : "test",
       "density": 300,
-      "resources": {
+      "storage": {
         "木頭": 1200,
         "石板": 1000,
         "鋼鐵": 300,
@@ -95,7 +97,7 @@ var mapGridData = [
       "maxLng": 120.24,
       "name" : "test",
       "density": 32,
-      "resources": {
+      "storage": {
         "木頭": 90,
         "石板": 40,
         "鋼鐵": 30,
@@ -127,7 +129,8 @@ let watcher
 var options = {
   enableHighAccuracy: false,
   timeout: 5000,
-  maximumAge: 0
+  maximumAge: 0,
+  distanceFilter: 1
 };
 var accurateOptions = {
   enableHighAccuracy: true,
@@ -176,6 +179,7 @@ function update (pos) {
 async function drawMap (pos) {
   lat = pos.coords.latitude
   lng = pos.coords.longitude
+  if(mymap){mymap.remove()}
   mymap = L.map('mapid', {
     center: [lat, lng],
     zoom: 16,
@@ -211,10 +215,10 @@ async function drawGeoJSON () {
     this._div.innerHTML = '<h4>地表資源資訊</h4>' + (props ?
       '已被採集'+ props.density + '次<br>' +
       '<b>剩餘資源: </b><br>' + 
-      '木頭: ' + props.resources.木頭 +'<br>' +
-      '石板: ' + props.resources.石板 +'<br>' +
-      '鋼鐵: ' + props.resources.鋼鐵 +'<br>' +
-      '銅礦: ' + props.resources.銅礦 +'<br>' +
+      '木頭: ' + props.storage.木頭 +'<br>' +
+      '石板: ' + props.storage.石板 +'<br>' +
+      '鋼鐵: ' + props.storage.鋼鐵 +'<br>' +
+      '銅礦: ' + props.storage.銅礦 +'<br>' +
       props.maxLat+','+props.maxLng
       : '<p style="margin: 0px">請點擊土地框格</p>')
   }
@@ -226,8 +230,9 @@ function createVisiableAreaData () {
   let maxLng = Math.ceil(lng * 100) / 100
   let locationGridArr = []
   let gap = 0.01
-  for(var i=-2; i<3; i++){
-    for(var j=-2; j<3; j++){
+  let range = Math.floor(userData.detectRange / 2)
+  for(var i=-range; i<=range; i++){
+    for(var j=-range; j<=range; j++){
       let checkLat = Math.round((maxLat+(i * gap)) * 100) / 100
       let checkLng = Math.round((maxLng+(j * gap)) * 100) / 100
       // 找已儲存陣列中是否有符合的
@@ -244,7 +249,7 @@ function createVisiableAreaData () {
             "maxLng": checkLng,
             "name" : "test",
             "density": 0,
-            "resources": {
+            "storage": {
               "木頭": 2000,
               "石板": 1800,
               "鋼鐵": 1200,
@@ -284,14 +289,13 @@ function style(feature) {
 }
 
 function getColor(d) {
-  return d > 1000 ? '#800026' :
-         d > 500  ? '#BD0026' :
-         d > 100  ? '#E31A1C' :
-         d > 50   ? '#FC4E2A' :
-         d > 20   ? '#FD8D3C' :
-         d > 10   ? '#FEB24C' :
-         d > 5    ? '#FED976' :
-                    '#FFEDA0'
+  return d > 50  ?  '#680A64' :
+         d > 35  ?  '#8A2584' :
+         d > 20  ?  '#A842A4' :
+         d > 15  ?  '#C964C5' :
+         d > 10  ?  '#E881E4' :
+         d > 5   ?  '#FCA8FA' :
+                    '#FEDDFD'
 }
 
 function highlightFeature(e) {
@@ -377,7 +381,7 @@ function collect () {
   })
   if (index >= 0) { // 原本該格有存在資料庫中
     mapGridData[index].properties.density++
-    mapGridData[index].properties.resources.木頭 -= 300
+    mapGridData[index].properties.storage.木頭 -= 300
     geojson.addData(createVisiableAreaData())
   } else { //原本沒存在，需要增加新的物件於陣列中，並刪除定量資源
     let gap = 0.01
@@ -388,7 +392,7 @@ function collect () {
         "maxLng": maxLng,
         "name" : "test",
         "density": 0,
-        "resources": {
+        "storage": {
           "木頭": 2000,
           "石板": 1800,
           "鋼鐵": 1200,
@@ -409,7 +413,7 @@ function collect () {
       }
     }
     newGrid.properties.density++
-    newGrid.properties.resources.木頭 -= 300
+    newGrid.properties.storage.木頭 -= 300
     mapGridData.push(newGrid)
     geojson.addData(createVisiableAreaData())
   }
