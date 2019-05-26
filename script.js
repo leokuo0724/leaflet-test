@@ -34,6 +34,7 @@ var mapGridData = [
       "maxLng": 120.22,
       "name" : "test",
       "density": 50,
+      "respawnTime": Date.now() - 10000,
       "storage": [
         {
           "type" : "木頭",
@@ -73,6 +74,7 @@ var mapGridData = [
       "maxLng": 120.22,
       "name" : "test", 
       "density": 2,
+      "respawnTime": null,
       "storage": [
         {
           "type" : "木頭",
@@ -112,6 +114,7 @@ var mapGridData = [
       "maxLng": 120.24,
       "name" : "test",
       "density": 300,
+      "respawnTime": null,
       "storage": [
         {
           "type" : "木頭",
@@ -151,6 +154,7 @@ var mapGridData = [
       "maxLng": 120.24,
       "name" : "test",
       "density": 32,
+      "respawnTime": null,
       "storage": [
         {
           "type" : "木頭",
@@ -232,8 +236,6 @@ function error (err) {
 
 // 根據移動改變座標
 function update (pos) {
-  console.log(pos.coords.latitude)
-  console.log(pos.coords.longitude)
   lat = pos.coords.latitude
   lng = pos.coords.longitude
   marker.setLatLng([lat, lng])
@@ -282,15 +284,24 @@ async function drawGeoJSON () {
   }
 
   info.update = function (props) {
-    this._div.innerHTML = '<h4>地表資源資訊</h4>' + (props ?
-      '已被採集'+ props.density + '次<br>' +
-      '<b>剩餘資源: </b><br>' + 
-      props.storage[0].type + ': ' + props.storage[0].amount +'<br>' +
-      props.storage[1].type + ': ' + props.storage[1].amount +'<br>' +
-      props.storage[2].type + ': ' + props.storage[2].amount +'<br>' +
-      props.storage[3].type + ': ' + props.storage[3].amount +'<br>' +
-      props.maxLat+','+props.maxLng
-      : '<p style="margin: 0px">請點擊土地框格</p>')
+    let displayContent
+    if (props) {
+      if (props.respawnTime) { // 還沒respawn
+        displayContent = '波波拉失控區域，等待資源重生<br>剩餘秒數: ' +  (props.respawnTime - Date.now())
+      } else {
+        displayContent = 
+        '已被採集'+ props.density + '次<br>' +
+        '<b>剩餘資源: </b><br>' + 
+        props.storage[0].type + ': ' + props.storage[0].amount +'<br>' +
+        props.storage[1].type + ': ' + props.storage[1].amount +'<br>' +
+        props.storage[2].type + ': ' + props.storage[2].amount +'<br>' +
+        props.storage[3].type + ': ' + props.storage[3].amount +'<br>' +
+        props.maxLat+','+props.maxLng
+      }
+    } else {
+      displayContent = '<p style="margin: 0px">請點擊土地框格</p>'
+    }
+    this._div.innerHTML = '<h4>地表資源資訊</h4>' + displayContent
   }
   info.addTo(mymap)
 }
@@ -302,6 +313,8 @@ function createVisiableAreaData () {
   let locationGridArr = []
   let gap = 0.01
   let range = Math.floor(userData.detectRange / 2)
+  checkGridStatus()
+
   for(var i=-range; i<=range; i++){
     for(var j=-range; j<=range; j++){
       let checkLat = Math.round((maxLat+(i * gap)) * 100) / 100
@@ -320,6 +333,7 @@ function createVisiableAreaData () {
             "maxLng": checkLng,
             "name" : "test",
             "density": 0,
+            "respawnTime" : null,
             "storage": [
               {
                 "type" : "木頭",
@@ -343,11 +357,11 @@ function createVisiableAreaData () {
             "type": "Polygon",
             "coordinates": [
               [
-                  [checkLng, checkLat],
-                  [checkLng-gap, checkLat],
-                  [checkLng-gap, checkLat-gap],
-                  [checkLng, checkLat-gap],
-                  [checkLng, checkLat]
+                [checkLng, checkLat],
+                [checkLng-gap, checkLat],
+                [checkLng-gap, checkLat-gap],
+                [checkLng, checkLat-gap],
+                [checkLng, checkLat]
               ]
             ]
           }
@@ -356,7 +370,6 @@ function createVisiableAreaData () {
       }
     }
   }
-  console.log(locationGridArr)
   return locationGridArr
 }
 
@@ -424,33 +437,39 @@ function onEachFeature(feature, layer) {
 }
 
 // 檢查是否可以進行採集
-function isCollectable () {
-  // 檢查是否有足夠的採集器
-  checkUserCoolDown()
-  console.log(userData.coolDownGrid)
-  let collectorAmount = userData.collectorMax - userData.coolDownGrid.length
-  if (collectorAmount > 0){
-    console.log('收集器足夠')
-    let maxLat = Math.ceil(lat * 100) / 100
-    let maxLng = Math.ceil(lng * 100) / 100
-    // 判斷該格有沒有在冷卻陣列中
-    let index = userData.coolDownGrid.findIndex(ele => { return ele.maxLat === maxLat && ele.maxLng === maxLng })
-    if ( index >= 0){ // 若有在冷卻陣列，判斷是否已經結束冷卻
-      if (userData.coolDownGrid[index].finishTime <= Date.now()) { // 已經結束冷卻，可以再收集一次
-        // 先刪掉原先存在陣列中的
-        userData.coolDownGrid.splice(index, 1)
-        console.log(userData.coolDownGrid)
-        // 執行採集
-        collect()
-      } else { // 尚未結束冷卻，還不能採集
+async function ifCollectable () {
+  let maxLat = Math.ceil(lat * 100) / 100
+  let maxLng = Math.ceil(lng * 100) / 100
+  
+  await checkGridStatus ()
+  let thiesGridIndex = mapGridData.findIndex(ele => { return ele.properties.maxLat === maxLat && ele.properties.maxLng === maxLng })
+  if (thiesGridIndex !== -1 && mapGridData[thiesGridIndex].properties.respawnTime) { // 正在波波拉失控
+    console.log('波波拉失控中，無法採集')
+    return
+  } else {
+    // 檢查是否有足夠的採集器
+    await checkUserCoolDown() // 根據該時間，先行對冷卻格子做修正
+    let collectorAmount = userData.collectorMax - userData.coolDownGrid.length
+    if (collectorAmount > 0){
+      console.log('收集器足夠')
+      // 判斷該格有沒有在冷卻陣列中
+      let index = userData.coolDownGrid.findIndex(ele => { return ele.maxLat === maxLat && ele.maxLng === maxLng })
+      if (index >= 0) { // 該格還在冷卻
         console.log('還在冷卻')
+      } else {
+        collect()
       }
     } else {
-      collect()
+      console.log('收集器不夠')
     }
-  } else {
-    console.log('收集器不夠')
   }
+}
+
+// 檢查格子是否還有資源(沒有的話是正在波波拉失控狀態)
+function checkGridStatus () {
+  mapGridData = mapGridData.filter(ele => {
+    return ele.properties.respawnTime === null || ele.properties.respawnTime >= Date.now()
+  })
 }
 
 // 檢查正在玩家正在冷卻的格子
@@ -493,6 +512,7 @@ function collect () {
         "maxLng": maxLng,
         "name" : "test",
         "density": 0,
+        "respawnTime": null,
         "storage": [
           {
             "type" : "木頭",
@@ -526,7 +546,6 @@ function collect () {
       }
     }
     newGrid.properties.density++
-    // newGrid.properties.storage.木頭 -= 300
     storageToResource(newGrid)
     mapGridData.push(newGrid)
     console.log(mapGridData)
@@ -544,11 +563,9 @@ function storageToResource (gridData) {
 function getAmount (gridData, index, proportion) {
   let addAmount
   if (gridData.properties.storage[index].amount - userData.collectAbility * proportion >= 0) { // 足量，可以採集
-    console.log('足量')
     addAmount = userData.collectAbility * proportion
     gridData.properties.storage[index].amount -= userData.collectAbility * proportion
   } else { // 不足，只能拿剩下的
-    console.log('不足量')
     addAmount = gridData.properties.storage[index].amount
     gridData.properties.storage[index].amount = 0
   }
@@ -558,9 +575,10 @@ function getAmount (gridData, index, proportion) {
       return ele.amount += addAmount
     }
   })
+}
 
-  console.log(userData.resources)
-  // return ele - userData.collectAbility*proportion >= 0 ? userData.collectAbility*proportion : ele
+function shutdownGrid () {
+
 }
 
 // 回到中心
