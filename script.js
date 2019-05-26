@@ -34,7 +34,7 @@ var mapGridData = [
       "maxLng": 120.22,
       "name" : "test",
       "density": 50,
-      "respawnTime": Date.now() - 10000,
+      "respawnTime": Date.now() + 10000000,
       "storage": [
         {
           "type" : "木頭",
@@ -111,26 +111,26 @@ var mapGridData = [
     "type": "Feature",
     "properties": { 
       "maxLat": 23.02,
-      "maxLng": 120.24,
+      "maxLng": 120.23,
       "name" : "test",
       "density": 300,
       "respawnTime": null,
       "storage": [
         {
           "type" : "木頭",
-          "amount" : 2000
+          "amount" : 100
         },
         {
           "type" : "石板",
-          "amount" : 1600
+          "amount" : 0
         },
         {
           "type" : "鋼鐵",
-          "amount" : 1000
+          "amount" : 100
         },
         {
           "type" : "銅礦",
-          "amount" : 400
+          "amount" : 0
         }
       ]
     },
@@ -138,11 +138,11 @@ var mapGridData = [
       "type": "Polygon",
       "coordinates": [
         [
-          [120.24, 23.02],
           [120.23, 23.02],
+          [120.22, 23.02],
+          [120.22, 23.01],
           [120.23, 23.01],
-          [120.24, 23.01],
-          [120.24, 23.02]
+          [120.23, 23.02]
         ]
       ]
     }
@@ -284,6 +284,7 @@ async function drawGeoJSON () {
   }
 
   info.update = function (props) {
+    checkGridStatus()
     let displayContent
     if (props) {
       if (props.respawnTime) { // 還沒respawn
@@ -468,8 +469,9 @@ async function ifCollectable () {
 // 檢查格子是否還有資源(沒有的話是正在波波拉失控狀態)
 function checkGridStatus () {
   mapGridData = mapGridData.filter(ele => {
-    return ele.properties.respawnTime === null || ele.properties.respawnTime >= Date.now()
+    return ele.properties.respawnTime === null || ele.properties.respawnTime > Date.now()
   })
+  console.log(mapGridData)
 }
 
 // 檢查正在玩家正在冷卻的格子
@@ -551,6 +553,7 @@ function collect () {
     console.log(mapGridData)
     geojson.addData(createVisiableAreaData())
   }
+  centerOn() // 回到定位中心
 }
 
 function storageToResource (gridData) {
@@ -558,6 +561,8 @@ function storageToResource (gridData) {
   getAmount(gridData, 1, 0.8)
   getAmount(gridData, 2, 0.5)
   getAmount(gridData, 3, 0.2)
+
+  shutdownGrid(gridData)
 }
 
 function getAmount (gridData, index, proportion) {
@@ -577,8 +582,16 @@ function getAmount (gridData, index, proportion) {
   })
 }
 
-function shutdownGrid () {
-
+function shutdownGrid (gridData) {
+  let stillHaveStorage = gridData.properties.storage.filter(ele => {return ele.amount > 0}).length
+  if (stillHaveStorage === 0) {
+    let time = 10000
+    gridData.properties.respawnTime = Date.now() + time
+    setTimeout(()=>{
+      geojson.clearLayers()
+      geojson.addData(createVisiableAreaData())
+    },time)
+  }
 }
 
 // 回到中心
